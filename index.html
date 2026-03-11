@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meta Ads Command Center</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0B0F1A; --surface: #131829; --surface-alt: #1A2035; --border: #252D44;
+  --text: #E2E8F0; --muted: #64748B; --accent: #3B82F6; --accent-glow: rgba(59,130,246,0.15);
+  --green: #10B981; --green-bg: rgba(16,185,129,0.12); --yellow: #F59E0B; --yellow-bg: rgba(245,158,11,0.12);
+  --red: #EF4444; --red-bg: rgba(239,68,68,0.12); --purple: #8B5CF6; --purple-bg: rgba(139,92,246,0.12);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; }
+.mono { font-family: 'Space Mono', monospace; }
+
+/* Header */
+.header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 24px; }
+.header-title { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.header-logo { width: 36px; height: 36px; background: linear-gradient(135deg, var(--accent), var(--purple)); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #fff; }
+.header h1 { font-size: 17px; font-weight: 700; letter-spacing: -0.02em; }
+.header-controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.header-controls select, .header-controls input { background: var(--surface-alt); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; font-size: 13px; font-family: inherit; outline: none; }
+.header-controls select { max-width: 220px; }
+.header-controls input { flex: 1; min-width: 150px; }
+.btn { border: none; border-radius: 8px; padding: 8px 18px; font-size: 13px; cursor: pointer; font-weight: 600; font-family: inherit; transition: opacity 0.2s; }
+.btn:hover { opacity: 0.85; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-danger { background: var(--red-bg); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+.btn-success { background: var(--green); color: #fff; }
+.client-badge { font-size: 12px; color: var(--accent); background: var(--accent-glow); padding: 3px 12px; border-radius: 20px; }
+
+/* Tabs */
+.tabs { display: flex; gap: 4px; padding: 10px 24px; background: var(--surface); border-bottom: 1px solid var(--border); overflow-x: auto; }
+.tab { padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 400; background: transparent; color: var(--muted); font-family: inherit; white-space: nowrap; transition: all 0.2s; position: relative; }
+.tab.active { background: var(--accent); color: #fff; font-weight: 600; }
+.tab .badge { background: var(--red); color: #fff; border-radius: 50%; padding: 1px 6px; font-size: 10px; margin-left: 4px; }
+
+/* Content */
+.content { padding: 24px; max-width: 1400px; margin: 0 auto; }
+
+/* KPIs */
+.kpis { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
+.kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 22px; flex: 1 1 200px; min-width: 170px; position: relative; overflow: hidden; }
+.kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--accent); }
+.kpi.green::before { background: var(--green); }
+.kpi.red::before { background: var(--red); }
+.kpi.yellow::before { background: var(--yellow); }
+.kpi.purple::before { background: var(--purple); }
+.kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+.kpi-value { font-size: 26px; font-weight: 700; font-family: 'Space Mono', monospace; }
+.kpi-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+/* Cards */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+.card h3 { font-size: 14px; font-weight: 600; margin-bottom: 16px; }
+
+/* Table */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { padding: 10px 12px; text-align: left; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--border); background: var(--surface-alt); white-space: nowrap; }
+td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+tr:nth-child(even) { background: var(--surface); }
+.text-green { color: var(--green); } .text-red { color: var(--red); } .text-yellow { color: var(--yellow); } .text-purple { color: var(--purple); }
+
+/* Badges */
+.sat-badge { padding: 2px 8px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.sat-ok { color: var(--green); }
+.sat-warn { background: var(--yellow-bg); color: var(--yellow); }
+.sat-critical { background: var(--red-bg); color: var(--red); }
+.obj-badge { padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.obj-msg { background: var(--purple-bg); color: var(--purple); }
+.obj-conv { background: var(--accent-glow); color: var(--accent); }
+
+/* Recommendation cards */
+.rec { border-radius: 10px; padding: 16px 20px; margin-bottom: 10px; }
+.rec-critical { background: var(--red-bg); border: 1px solid rgba(239,68,68,0.15); }
+.rec-warning { background: var(--yellow-bg); border: 1px solid rgba(245,158,11,0.15); }
+.rec-success { background: var(--green-bg); border: 1px solid rgba(16,185,129,0.15); }
+.rec-info { background: var(--accent-glow); border: 1px solid rgba(59,130,246,0.15); }
+.rec-header { display: flex; justify-content: space-between; margin-bottom: 6px; flex-wrap: wrap; gap: 6px; }
+.rec-title { font-weight: 700; font-size: 14px; }
+.rec-campaign { font-size: 11px; color: var(--muted); background: var(--surface); padding: 2px 8px; border-radius: 20px; }
+.rec-detail { font-size: 13px; line-height: 1.5; margin-bottom: 8px; }
+.rec-action { font-size: 12px; font-style: italic; }
+
+/* Alert banner */
+.alert-banner { border-radius: 10px; padding: 14px 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; cursor: pointer; }
+.alert-red { background: var(--red-bg); border: 1px solid rgba(239,68,68,0.2); }
+
+/* Saturation card */
+.sat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+.sat-card.saturated { border-color: rgba(239,68,68,0.3); }
+.sat-bar-bg { background: var(--surface-alt); border-radius: 6px; height: 8px; overflow: hidden; margin: 8px 0; }
+.sat-bar { height: 100%; border-radius: 6px; transition: width 0.5s; }
+.sat-action { margin-top: 12px; background: var(--red-bg); border-radius: 8px; padding: 10px 12px; font-size: 12px; }
+
+/* Sales */
+.sales-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 14px; }
+.sales-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 14px; }
+.sales-stat { background: var(--surface-alt); border-radius: 8px; padding: 10px 14px; }
+.sales-stat-label { font-size: 11px; color: var(--muted); }
+.sales-stat-value { font-size: 18px; font-weight: 700; font-family: 'Space Mono', monospace; }
+.sales-input-row { display: flex; gap: 10px; align-items: center; }
+.sales-input-row input { flex: 1; background: var(--surface-alt); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 13px; font-family: inherit; outline: none; }
+.roi-box { padding: 8px 16px; border-radius: 10px; text-align: center; }
+.roi-label { font-size: 11px; color: var(--muted); }
+.roi-value { font-size: 22px; font-weight: 700; font-family: 'Space Mono', monospace; }
+
+/* Charts */
+.charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+@media (max-width: 800px) { .charts-grid { grid-template-columns: 1fr; } .sales-grid { grid-template-columns: 1fr; } }
+
+/* Toast */
+.toast { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); background: var(--green); color: #fff; padding: 10px 24px; border-radius: 10px; font-size: 13px; font-weight: 600; z-index: 999; box-shadow: 0 4px 20px rgba(0,0,0,0.5); transition: opacity 0.3s; }
+.toast.hidden { opacity: 0; pointer-events: none; }
+
+/* Setup */
+.setup-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 30px; max-width: 600px; margin: 40px auto; }
+.setup-box h2 { margin-bottom: 8px; font-size: 20px; }
+.setup-box p { color: var(--muted); font-size: 13px; margin-bottom: 20px; line-height: 1.6; }
+.setup-box label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; margin-top: 16px; }
+.setup-box input { width: 100%; background: var(--surface-alt); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 13px; font-family: inherit; outline: none; }
+.setup-box .hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+/* Empty state */
+.empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+.empty-icon { font-size: 48px; margin-bottom: 16px; }
+.empty h3 { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+
+/* Loading */
+.loading { text-align: center; padding: 60px; color: var(--muted); }
+.spinner { display: inline-block; width: 30px; height: 30px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 16px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div id="toast" class="toast hidden"></div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-title">
+    <div class="header-logo">◈</div>
+    <h1>Meta Ads Command Center</h1>
+    <span id="clientBadge" class="client-badge" style="display:none"></span>
+  </div>
+  <div class="header-controls">
+    <select id="clientSelect" onchange="selectClient(this.value)">
+      <option value="">— Cliente —</option>
+    </select>
+    <input id="newClientInput" placeholder="Nombre del nuevo cliente..." onkeydown="if(event.key==='Enter')addClient()">
+    <button class="btn btn-primary" onclick="addClient()">+ Agregar</button>
+    <button class="btn btn-primary" onclick="refreshData()" id="refreshBtn" style="display:none">↻ Actualizar datos</button>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab active" onclick="showView('dashboard',this)">📊 Dashboard</button>
+  <button class="tab" onclick="showView('campaigns',this)">📋 Campañas</button>
+  <button class="tab" onclick="showView('saturation',this)" id="tabSaturation">🔴 Saturación</button>
+  <button class="tab" onclick="showView('sales',this)">💰 Ventas Manuales</button>
+  <button class="tab" onclick="showView('recommendations',this)" id="tabRecs">💡 Recomendaciones</button>
+  <button class="tab" onclick="showView('config',this)">⚙ Configuración</button>
+</div>
+
+<!-- CONTENT -->
+<div class="content" id="content"></div>
+
+<script>
+// ========== STATE ==========
+let clients = {}; // { clientName: { sheetId, gid, data: [], lastFetch } }
+let activeClient = '';
+let salesData = {}; // { clientName: { campaignName: { totalSales, updatedAt } } }
+let currentView = 'dashboard';
+let charts = {};
+
+// ========== STORAGE ==========
+function loadState() {
+  try {
+    const s = localStorage.getItem('metaads-ghp');
+    if (s) {
+      const d = JSON.parse(s);
+      clients = d.clients || {};
+      activeClient = d.activeClient || '';
+      salesData = d.salesData || {};
+    }
+  } catch(e) {}
+}
+function saveState() {
+  try {
+    localStorage.setItem('metaads-ghp', JSON.stringify({ clients, activeClient, salesData }));
+  } catch(e) {}
+}
+
+// ========== TOAST ==========
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.remove('hidden');
+  setTimeout(() => t.classList.add('hidden'), 3000);
+}
+
+// ========== FORMAT ==========
+const fmt = {
+  money: v => v == null || isNaN(v) ? '—' : '$' + Number(v).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}),
+  num: v => v == null || isNaN(v) ? '—' : Number(v).toLocaleString('en-US'),
+  pct: v => v == null || isNaN(v) ? '—' : Number(v).toFixed(2) + '%',
+  roas: v => v == null || isNaN(v) ? '—' : Number(v).toFixed(2) + 'x',
+};
+
+// ========== CLIENT MANAGEMENT ==========
+function renderClientSelect() {
+  const sel = document.getElementById('clientSelect');
+  sel.innerHTML = '<option value="">— Cliente —</option>';
+  Object.keys(clients).forEach(c => {
+    const len = (clients[c].data || []).length;
+    sel.innerHTML += `<option value="${c}" ${c===activeClient?'selected':''}>${c} (${len})</option>`;
+  });
+  const badge = document.getElementById('clientBadge');
+  const btn = document.getElementById('refreshBtn');
+  if (activeClient) {
+    badge.style.display = ''; badge.textContent = activeClient;
+    btn.style.display = clients[activeClient]?.sheetId ? '' : 'none';
+  } else {
+    badge.style.display = 'none'; btn.style.display = 'none';
+  }
+}
+
+function addClient() {
+  const input = document.getElementById('newClientInput');
+  const name = input.value.trim();
+  if (!name) { toast('Escribe un nombre de cliente'); return; }
+  if (!clients[name]) clients[name] = { sheetId: '', gid: '0', data: [] };
+  activeClient = name;
+  input.value = '';
+  saveState(); renderClientSelect(); renderView();
+  toast(`Cliente "${name}" agregado`);
+}
+
+function selectClient(name) {
+  activeClient = name;
+  saveState(); renderClientSelect(); renderView();
+}
+
+// ========== GOOGLE SHEETS FETCH ==========
+async function fetchSheetData(sheetId, gid) {
+  const url = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`Error ${resp.status}`);
+  const text = await resp.text();
+  return new Promise(resolve => {
+    Papa.parse(text, {
+      header: true, skipEmptyLines: true, dynamicTyping: true,
+      complete: r => resolve(r.data)
+    });
+  });
+}
+
+async function refreshData() {
+  if (!activeClient || !clients[activeClient]?.sheetId) {
+    toast('Configura el Google Sheet primero'); showView('config'); return;
+  }
+  const c = clients[activeClient];
+  document.getElementById('content').innerHTML = '<div class="loading"><div class="spinner"></div><div>Cargando datos de Google Sheets...</div></div>';
+  try {
+    const raw = await fetchSheetData(c.sheetId, c.gid || '0');
+    const data = raw.map(r => {
+      const row = {};
+      Object.keys(r).forEach(k => { row[k.trim().toLowerCase().replace(/\s+/g,'_')] = r[k]; });
+      ['spend','impressions','clicks','ctr','cpc','cpm','reach','frequency','conversions','messages','purchases','roas'].forEach(k => {
+        if (row[k] !== undefined && row[k] !== null && row[k] !== '') row[k] = parseFloat(row[k]) || 0;
+        else row[k] = 0;
+      });
+      if (!row.campaign_name && row.campaign) row.campaign_name = row.campaign;
+      if (!row.objective) row.objective = '';
+      return row;
+    }).filter(r => r.campaign_name && r.spend > 0);
+    c.data = data;
+    c.lastFetch = new Date().toISOString();
+    saveState(); renderView();
+    toast(`${data.length} filas cargadas para ${activeClient}`);
+  } catch(e) {
+    toast('Error al cargar: ' + e.message);
+    renderView();
+  }
+}
+
+// ========== DATA ANALYSIS ==========
+function getObjective(row) {
+  const obj = (row.objective || '').toUpperCase();
+  if (obj.includes('MESSAGE') || obj.includes('CONVERSATION') || obj.includes('MENSAJ')) return 'messages';
+  return 'conversions';
+}
+
+function getStats(data) {
+  if (!data.length) return null;
+  const totalSpend = data.reduce((s,r) => s + r.spend, 0);
+  const totalImpressions = data.reduce((s,r) => s + r.impressions, 0);
+  const totalClicks = data.reduce((s,r) => s + r.clicks, 0);
+  const totalConversions = data.reduce((s,r) => s + (r.conversions||0), 0);
+  const totalMessages = data.reduce((s,r) => s + (r.messages||0), 0);
+  const avgCTR = totalImpressions > 0 ? (totalClicks/totalImpressions)*100 : 0;
+  const avgCPC = totalClicks > 0 ? totalSpend/totalClicks : 0;
+  const avgCPM = totalImpressions > 0 ? (totalSpend/totalImpressions)*1000 : 0;
+  const weightedROAS = data.reduce((s,r) => s + r.spend*(r.roas||0), 0) / (totalSpend||1);
+  const costPerConv = totalConversions > 0 ? totalSpend/totalConversions : 0;
+  const costPerMsg = totalMessages > 0 ? totalSpend/totalMessages : 0;
+  return { totalSpend, totalImpressions, totalClicks, totalConversions, totalMessages, avgCTR, avgCPC, avgCPM, weightedROAS, costPerConv, costPerMsg };
+}
+
+function getCampaignSummary(data) {
+  const map = {};
+  data.forEach(r => {
+    const name = r.campaign_name;
+    if (!map[name]) map[name] = { name, objective: r.objective||'', spend:0, impressions:0, clicks:0, conversions:0, messages:0, purchases:0, roas_w:0, freq_sum:0, count:0 };
+    const c = map[name];
+    c.spend += r.spend; c.impressions += r.impressions; c.clicks += r.clicks;
+    c.conversions += (r.conversions||0); c.messages += (r.messages||0); c.purchases += (r.purchases||0);
+    c.roas_w += r.spend * (r.roas||0); c.freq_sum += (r.frequency||0); c.count++;
+  });
+  return Object.values(map).map(c => ({
+    ...c,
+    ctr: c.impressions>0 ? (c.clicks/c.impressions)*100 : 0,
+    cpc: c.clicks>0 ? c.spend/c.clicks : 0,
+    cpm: c.impressions>0 ? (c.spend/c.impressions)*1000 : 0,
+    roas: c.spend>0 ? c.roas_w/c.spend : 0,
+    avg_frequency: c.count>0 ? c.freq_sum/c.count : 0,
+    cost_per_conv: c.conversions>0 ? c.spend/c.conversions : 0,
+    cost_per_msg: c.messages>0 ? c.spend/c.messages : 0,
+    type: getObjective({objective: c.objective}),
+  })).sort((a,b) => b.spend - a.spend);
+}
+
+function getDailyData(data) {
+  const map = {};
+  data.forEach(r => {
+    const d = r.date || 'N/A';
+    if (!map[d]) map[d] = { date: d, spend:0, conversions:0, messages:0, clicks:0, impressions:0 };
+    map[d].spend += r.spend; map[d].conversions += (r.conversions||0); map[d].messages += (r.messages||0);
+    map[d].clicks += r.clicks; map[d].impressions += r.impressions;
+  });
+  return Object.values(map).sort((a,b) => a.date.localeCompare(b.date));
+}
+
+function generateRecommendations(data, clientSales) {
+  const recs = [];
+  const byCampaign = {};
+  data.forEach(r => {
+    if (!byCampaign[r.campaign_name]) byCampaign[r.campaign_name] = [];
+    byCampaign[r.campaign_name].push(r);
+  });
+  Object.entries(byCampaign).forEach(([name, rows]) => {
+    const avgFreq = rows.reduce((s,r) => s + (r.frequency||0), 0) / rows.length;
+    const totalSpend = rows.reduce((s,r) => s + r.spend, 0);
+    const avgCTR = rows.reduce((s,r) => s + (r.ctr||0), 0) / rows.length;
+    const objective = getObjective(rows[0]);
+    const totalMessages = rows.reduce((s,r) => s + (r.messages||0), 0);
+    const avgROAS = rows.reduce((s,r) => s + (r.roas||0), 0) / rows.length;
+
+    if (avgFreq > 2.3) recs.push({ type:'critical', campaign:name, title:'Saturación de audiencia', detail:`Frecuencia promedio: ${avgFreq.toFixed(2)}. Supera el umbral de 2.3. La audiencia ve los anuncios demasiadas veces.`, action:'Rotar creativos, ampliar audiencia, o crear exclusiones de personas que ya interactuaron.' });
+
+    if (objective === 'messages') {
+      const costPerMsg = totalMessages > 0 ? totalSpend/totalMessages : 0;
+      const sale = (clientSales||{})[name];
+      if (sale && sale.totalSales > 0) {
+        const roi = (sale.totalSales - totalSpend) / totalSpend;
+        if (roi < 0) recs.push({ type:'warning', campaign:name, title:'ROI negativo en ventas reales', detail:`Inversión: ${fmt.money(totalSpend)} vs Ventas: ${fmt.money(sale.totalSales)}. ROI: ${(roi*100).toFixed(1)}%.`, action:'Revisar calidad de las conversaciones y proceso de cierre.' });
+        else if (roi > 1) recs.push({ type:'success', campaign:name, title:'Excelente ROI en ventas', detail:`Retorno de ${(roi*100).toFixed(0)}% sobre la inversión.`, action:'Considerar escalar presupuesto 20-30% semanal.' });
+      }
+      if (costPerMsg > 8) recs.push({ type:'warning', campaign:name, title:'Costo por conversación alto', detail:`$${costPerMsg.toFixed(2)}/conversación. Benchmark LATAM: $2-5.`, action:'Probar nuevos copies con hooks directos. Revisar segmentación.' });
+      else if (costPerMsg < 2 && totalMessages > 20) recs.push({ type:'success', campaign:name, title:'Costo por conversación excelente', detail:`$${costPerMsg.toFixed(2)}/conversación. Debajo del benchmark.`, action:'Mantener y considerar escalar.' });
+    } else {
+      if (avgROAS < 1) recs.push({ type:'critical', campaign:name, title:'ROAS debajo de equilibrio', detail:`ROAS: ${avgROAS.toFixed(2)}x. Estás perdiendo dinero.`, action:'Pausar ad sets con peor rendimiento. Revisar público y oferta.' });
+      else if (avgROAS >= 3) recs.push({ type:'success', campaign:name, title:'ROAS excelente', detail:`ROAS: ${avgROAS.toFixed(2)}x.`, action:'Escalar 20-30%. Duplicar ad sets ganadores.' });
+    }
+    if (avgCTR < 1) recs.push({ type:'warning', campaign:name, title:'CTR bajo', detail:`CTR: ${avgCTR.toFixed(2)}%. Benchmark mínimo: 1%.`, action:'Cambiar creativos: video, carruseles, UGC. Hook más fuerte.' });
+
+    const ft = rows.length >= 3 ? rows.slice(-3).map(r => r.frequency||0) : [];
+    if (ft.length === 3 && ft[2] > ft[0] * 1.15) recs.push({ type:'warning', campaign:name, title:'Frecuencia en aumento', detail:`Subió de ${ft[0].toFixed(2)} a ${ft[2].toFixed(2)} en 3 días.`, action:'Preparar nuevos creativos antes de saturación.' });
+  });
+  if (!recs.length) recs.push({ type:'info', campaign:'General', title:'Sin alertas', detail:'Todas las campañas dentro de parámetros normales.', action:'Seguir monitoreando.' });
+  return recs.sort((a,b) => {
+    const o = {critical:0,warning:1,info:2,success:3};
+    return (o[a.type]??2) - (o[b.type]??2);
+  });
+}
+
+// ========== RENDERING ==========
+function showView(view, tabEl) {
+  currentView = view;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  if (tabEl) tabEl.classList.add('active');
+  else document.querySelector(`.tab:nth-child(${['dashboard','campaigns','saturation','sales','recommendations','config'].indexOf(view)+1})`)?.classList.add('active');
+  renderView();
+}
+
+function destroyCharts() {
+  Object.values(charts).forEach(c => { try { c.destroy(); } catch(e){} });
+  charts = {};
+}
+
+function satBadge(freq) {
+  if (freq <= 2.3) return `<span class="sat-badge sat-ok">✓ ${freq.toFixed(2)}</span>`;
+  if (freq <= 3.0) return `<span class="sat-badge sat-warn">⚠ ${freq.toFixed(2)}</span>`;
+  return `<span class="sat-badge sat-critical">🔴 ${freq.toFixed(2)}</span>`;
+}
+
+function recHTML(r) {
+  const cls = `rec rec-${r.type}`;
+  const colors = { critical:'var(--red)', warning:'var(--yellow)', success:'var(--green)', info:'var(--accent)' };
+  const icons = { critical:'🔴', warning:'🟡', success:'🟢', info:'🔵' };
+  return `<div class="${cls}">
+    <div class="rec-header"><span class="rec-title" style="color:${colors[r.type]}">${icons[r.type]} ${r.title}</span><span class="rec-campaign">${r.campaign}</span></div>
+    <div class="rec-detail">${r.detail}</div>
+    <div class="rec-action" style="color:${colors[r.type]}">→ ${r.action}</div></div>`;
+}
+
+function renderView() {
+  destroyCharts();
+  const el = document.getElementById('content');
+  const data = activeClient ? (clients[activeClient]?.data || []) : [];
+  const stats = getStats(data);
+  const campaigns = getCampaignSummary(data);
+  const daily = getDailyData(data);
+  const saturated = campaigns.filter(c => c.avg_frequency > 2.3);
+  const clientSales = salesData[activeClient] || {};
+  const recs = data.length ? generateRecommendations(data, clientSales) : [];
+
+  // Update tab badges
+  const tabSat = document.getElementById('tabSaturation');
+  tabSat.innerHTML = `🔴 Saturación ${saturated.length ? `<span class="badge">${saturated.length}</span>` : ''}`;
+  const critCount = recs.filter(r => r.type==='critical').length;
+  document.getElementById('tabRecs').innerHTML = `💡 Recomendaciones ${critCount ? `<span class="badge">${critCount}</span>` : ''}`;
+
+  if (currentView === 'config') { renderConfig(el); return; }
+  if (!activeClient) { el.innerHTML = '<div class="empty"><div class="empty-icon">📊</div><h3>Sin cliente</h3><div>Agrega un cliente arriba para comenzar</div></div>'; return; }
+  if (!data.length && currentView !== 'config') {
+    const hasSheet = clients[activeClient]?.sheetId;
+    el.innerHTML = `<div class="empty"><div class="empty-icon">📊</div><h3>Sin datos</h3>
+      <div>${hasSheet ? 'Haz clic en "↻ Actualizar datos" para jalar los datos del Sheet' : 'Configura el Google Sheet en la pestaña ⚙ Configuración'}</div>
+      <br><button class="btn btn-primary" onclick="showView('config')">${hasSheet ? '↻ Actualizar' : '⚙ Configurar Sheet'}</button></div>`;
+    return;
+  }
+
+  if (currentView === 'dashboard') renderDashboard(el, stats, campaigns, daily, saturated, recs);
+  else if (currentView === 'campaigns') renderCampaigns(el, campaigns);
+  else if (currentView === 'saturation') renderSaturation(el, campaigns);
+  else if (currentView === 'sales') renderSales(el, campaigns, clientSales);
+  else if (currentView === 'recommendations') renderRecs(el, recs);
+}
+
+function renderDashboard(el, stats, campaigns, daily, saturated, recs) {
+  if (!stats) return;
+  const roasColor = stats.weightedROAS >= 3 ? 'green' : stats.weightedROAS >= 1 ? 'yellow' : 'red';
+  const ctrColor = stats.avgCTR >= 3 ? 'green' : stats.avgCTR >= 1 ? 'yellow' : 'red';
+
+  let html = `
+  <div class="kpis">
+    <div class="kpi"><div class="kpi-label">$ Total invertido</div><div class="kpi-value">${fmt.money(stats.totalSpend)}</div></div>
+    <div class="kpi green"><div class="kpi-label">🎯 Conversiones</div><div class="kpi-value">${fmt.num(stats.totalConversions)}</div><div class="kpi-sub">${stats.totalConversions > 0 ? fmt.money(stats.costPerConv)+'/conv' : ''}</div></div>
+    <div class="kpi purple"><div class="kpi-label">💬 Conversaciones</div><div class="kpi-value">${fmt.num(stats.totalMessages)}</div><div class="kpi-sub">${stats.totalMessages > 0 ? fmt.money(stats.costPerMsg)+'/msg' : ''}</div></div>
+    <div class="kpi ${roasColor}"><div class="kpi-label">📈 ROAS (Compras)</div><div class="kpi-value">${fmt.roas(stats.weightedROAS)}</div><div class="kpi-sub">${stats.weightedROAS>=3?'Excelente':stats.weightedROAS>=1?'Aceptable':'Bajo'}</div></div>
+  </div>
+  <div class="kpis">
+    <div class="kpi ${ctrColor}"><div class="kpi-label">👆 CTR</div><div class="kpi-value">${fmt.pct(stats.avgCTR)}</div></div>
+    <div class="kpi"><div class="kpi-label">💲 CPC</div><div class="kpi-value">${fmt.money(stats.avgCPC)}</div></div>
+    <div class="kpi"><div class="kpi-label">📡 CPM</div><div class="kpi-value">${fmt.money(stats.avgCPM)}</div></div>
+    <div class="kpi"><div class="kpi-label">👁 Impresiones</div><div class="kpi-value">${fmt.num(stats.totalImpressions)}</div><div class="kpi-sub">${fmt.num(stats.totalClicks)} clics</div></div>
+  </div>`;
+
+  if (saturated.length) {
+    html += `<div class="alert-banner alert-red" onclick="showView('saturation')">
+      <span style="font-size:22px">🔴</span>
+      <div><strong style="color:var(--red)">${saturated.length} campaña${saturated.length>1?'s':''} con saturación</strong><br><span style="font-size:12px;color:var(--muted)">Frecuencia > 2.3 — clic para detalle</span></div>
+    </div>`;
+  }
+
+  html += `<div class="charts-grid">
+    <div class="card"><h3>Inversión diaria</h3><canvas id="chartSpend"></canvas></div>
+    <div class="card"><h3>Conversiones + Conversaciones</h3><canvas id="chartConv"></canvas></div>
+  </div>`;
+
+  html += `<div class="card"><h3>Inversión por campaña</h3><canvas id="chartCampaigns"></canvas></div>`;
+
+  const topRecs = recs.filter(r => r.type==='critical'||r.type==='warning').slice(0,3);
+  if (topRecs.length) {
+    html += `<div style="margin-bottom:16px"><div style="font-size:14px;font-weight:600;margin-bottom:12px">💡 Alertas principales <span onclick="showView('recommendations')" style="font-size:12px;color:var(--accent);cursor:pointer">Ver todas →</span></div>`;
+    topRecs.forEach(r => { html += recHTML(r); });
+    html += '</div>';
+  }
+
+  el.innerHTML = html;
+
+  // Charts
+  const labels = daily.map(d => d.date.slice(5));
+  charts.spend = new Chart(document.getElementById('chartSpend'), {
+    type: 'bar', data: { labels, datasets: [{ data: daily.map(d=>d.spend), backgroundColor: 'rgba(59,130,246,0.7)', borderRadius: 4 }] },
+    options: { responsive:true, plugins:{legend:{display:false}}, scales: { x:{ticks:{color:'#64748B',font:{size:10}},grid:{display:false}}, y:{ticks:{color:'#64748B',callback:v=>'$'+v},grid:{color:'#252D44'}} } }
+  });
+  charts.conv = new Chart(document.getElementById('chartConv'), {
+    type: 'line', data: { labels, datasets: [
+      { label:'Conversiones', data: daily.map(d=>d.conversions), borderColor:'#10B981', backgroundColor:'rgba(16,185,129,0.1)', fill:true, tension:0.3 },
+      { label:'Conversaciones', data: daily.map(d=>d.messages), borderColor:'#8B5CF6', backgroundColor:'rgba(139,92,246,0.1)', fill:true, tension:0.3 },
+    ]}, options: { responsive:true, plugins:{legend:{labels:{color:'#64748B'}}}, scales: { x:{ticks:{color:'#64748B',font:{size:10}},grid:{display:false}}, y:{ticks:{color:'#64748B'},grid:{color:'#252D44'}} } }
+  });
+  const campLabels = campaigns.map(c => c.name.length > 25 ? c.name.slice(0,25)+'...' : c.name);
+  const campColors = campaigns.map(c => c.type==='messages' ? '#8B5CF6' : '#3B82F6');
+  charts.campaigns = new Chart(document.getElementById('chartCampaigns'), {
+    type:'bar', data:{ labels:campLabels, datasets:[{data:campaigns.map(c=>c.spend), backgroundColor:campColors, borderRadius:4}] },
+    options:{ indexAxis:'y', responsive:true, plugins:{legend:{display:false}}, scales:{ x:{ticks:{color:'#64748B',callback:v=>'$'+v},grid:{color:'#252D44'}}, y:{ticks:{color:'#64748B',font:{size:11}},grid:{display:false}} } }
+  });
+}
+
+function renderCampaigns(el, campaigns) {
+  let html = '<h2 style="font-size:20px;font-weight:700;margin-bottom:16px">Detalle por campaña</h2><div class="table-wrap"><table><thead><tr>';
+  ['Campaña','Tipo','Spend','Impresiones','Clicks','CTR','CPC','CPM','Conv.','Msgs','Freq.','Métrica clave'].forEach(h => { html += `<th>${h}</th>`; });
+  html += '</tr></thead><tbody>';
+  campaigns.forEach(c => {
+    const ctrCls = c.ctr>=3?'text-green':c.ctr>=1?'text-yellow':'text-red';
+    const objBadge = c.type==='messages' ? '<span class="obj-badge obj-msg">💬 Mensajes</span>' : '<span class="obj-badge obj-conv">🎯 Conversiones</span>';
+    const keyMetric = c.type==='messages'
+      ? `<span class="text-purple mono">${fmt.money(c.cost_per_msg)}/msg</span>`
+      : `<span class="${c.roas>=3?'text-green':c.roas>=1?'text-yellow':'text-red'} mono">${fmt.roas(c.roas)} ROAS</span>`;
+    html += `<tr>
+      <td style="font-weight:600;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.name}">${c.name}</td>
+      <td>${objBadge}</td><td class="mono">${fmt.money(c.spend)}</td><td>${fmt.num(c.impressions)}</td><td>${fmt.num(c.clicks)}</td>
+      <td class="${ctrCls}">${fmt.pct(c.ctr)}</td><td>${fmt.money(c.cpc)}</td><td>${fmt.money(c.cpm)}</td>
+      <td>${c.conversions>0?fmt.num(c.conversions):'—'}</td><td>${c.messages>0?fmt.num(c.messages):'—'}</td>
+      <td>${satBadge(c.avg_frequency)}</td><td>${keyMetric}</td></tr>`;
+  });
+  html += '</tbody></table></div>';
+  el.innerHTML = html;
+}
+
+function renderSaturation(el, campaigns) {
+  let html = '<h2 style="font-size:20px;font-weight:700;margin-bottom:8px">🔴 Monitor de Saturación</h2><p style="color:var(--muted);font-size:13px;margin-bottom:20px">Campañas con frecuencia > 2.3 necesitan rotación de creativos.</p>';
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px">';
+  campaigns.forEach(c => {
+    const isSat = c.avg_frequency > 2.3;
+    const pct = Math.min((c.avg_frequency/4)*100, 100);
+    const barColor = c.avg_frequency>3?'var(--red)':c.avg_frequency>2.3?'var(--yellow)':'var(--green)';
+    html += `<div class="sat-card ${isSat?'saturated':''}">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70%">${c.name}</span>${satBadge(c.avg_frequency)}</div>
+      <div class="sat-bar-bg"><div class="sat-bar" style="width:${pct}%;background:${barColor}"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted)"><span>0</span><span style="color:var(--yellow)">2.3</span><span>4.0+</span></div>
+      ${isSat?'<div class="sat-action"><strong style="color:var(--red)">⚠ Acción requerida</strong><br>Rotar creativos, ampliar audiencia o pausar y relanzar.</div>':''}
+    </div>`;
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function renderSales(el, campaigns, clientSales) {
+  const msgCampaigns = campaigns.filter(c => c.type === 'messages');
+  if (!msgCampaigns.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">💬</div><h3>Sin campañas de conversaciones</h3><div>No hay campañas de tipo "mensajes" en los datos actuales.</div></div>';
+    return;
+  }
+  let html = '<h2 style="font-size:20px;font-weight:700;margin-bottom:8px">💰 Cargar ventas reales</h2><p style="color:var(--muted);font-size:13px;margin-bottom:20px">Para campañas de conversaciones, carga el total de ventas cerradas para calcular ROI real.</p>';
+  msgCampaigns.forEach(c => {
+    const existing = clientSales[c.name];
+    const roi = existing && existing.totalSales > 0 ? ((existing.totalSales - c.spend) / c.spend) * 100 : null;
+    html += `<div class="sales-card"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;gap:10px"><div>
+      <div style="font-weight:700;font-size:15px;margin-bottom:4px">${c.name}</div>
+      <div style="font-size:12px;color:var(--muted)">Inversión: ${fmt.money(c.spend)} · ${fmt.num(c.messages)} conversaciones · ${fmt.money(c.cost_per_msg)}/msg</div>
+    </div>`;
+    if (roi !== null) {
+      html += `<div class="roi-box" style="background:${roi>=0?'var(--green-bg)':'var(--red-bg)'}"><div class="roi-label">ROI Real</div><div class="roi-value" style="color:${roi>=0?'var(--green)':'var(--red)'}">${roi.toFixed(0)}%</div></div>`;
+    }
+    html += '</div>';
+    if (existing) {
+      html += `<div class="sales-grid">
+        <div class="sales-stat"><div class="sales-stat-label">Invertido</div><div class="sales-stat-value">${fmt.money(c.spend)}</div></div>
+        <div class="sales-stat"><div class="sales-stat-label">Ventas reales</div><div class="sales-stat-value text-green">${fmt.money(existing.totalSales)}</div></div>
+        <div class="sales-stat"><div class="sales-stat-label">Ganancia neta</div><div class="sales-stat-value ${existing.totalSales-c.spend>=0?'text-green':'text-red'}">${fmt.money(existing.totalSales-c.spend)}</div></div>
+      </div>`;
+    }
+    const inputId = 'sales_' + c.name.replace(/[^a-zA-Z0-9]/g,'_');
+    html += `<div class="sales-input-row">
+      <input id="${inputId}" type="number" placeholder="Total ventas en $ USD...">
+      <button class="btn btn-success" onclick="saveSales('${c.name.replace(/'/g,"\\'")}','${inputId}')">Guardar ventas</button>
+    </div>`;
+    if (existing) html += `<div style="font-size:11px;color:var(--muted);margin-top:6px">Última actualización: ${new Date(existing.updatedAt).toLocaleDateString()}</div>`;
+    html += '</div>';
+  });
+  el.innerHTML = html;
+}
+
+function renderRecs(el, recs) {
+  let html = '<h2 style="font-size:20px;font-weight:700;margin-bottom:8px">💡 Recomendaciones profesionales</h2><p style="color:var(--muted);font-size:13px;margin-bottom:20px">Análisis automático con acciones sugeridas.</p>';
+  recs.forEach(r => { html += recHTML(r); });
+  el.innerHTML = html;
+}
+
+function renderConfig(el) {
+  const c = activeClient ? (clients[activeClient] || {}) : {};
+  el.innerHTML = `<div class="setup-box">
+    <h2>⚙ Configuración de Google Sheet</h2>
+    <p>Conecta tu Google Sheet para que el dashboard lea los datos automáticamente. Solo necesitas publicar el Sheet y pegar el ID aquí.</p>
+    ${activeClient ? `<div style="margin-bottom:16px"><span class="client-badge">${activeClient}</span></div>` : '<p style="color:var(--red)">Primero agrega un cliente arriba.</p>'}
+    <label>Google Sheet ID</label>
+    <input id="cfgSheetId" value="${c.sheetId||''}" placeholder="Ej: 1L0bSm9HFljbazuHDRHaxt78CdGtwMnLr...">
+    <div class="hint">Lo encuentras en la URL del Sheet: docs.google.com/spreadsheets/d/<strong>[ESTE_ID]</strong>/edit</div>
+    <label>GID de la hoja (pestaña)</label>
+    <input id="cfgGid" value="${c.gid||'0'}" placeholder="0 para la primera hoja">
+    <div class="hint">Lo encuentras al final de la URL: ...edit#gid=<strong>[ESTE_NÚMERO]</strong>. La primera hoja es 0.</div>
+    <h3 style="margin-top:24px;font-size:14px">Cómo publicar tu Google Sheet:</h3>
+    <ol style="color:var(--muted);font-size:13px;line-height:2;padding-left:20px;margin-top:8px">
+      <li>Abre tu Google Sheet</li>
+      <li>Archivo → Compartir → <strong>Publicar en la Web</strong></li>
+      <li>Selecciona la hoja correcta y formato "CSV"</li>
+      <li>Clic en "Publicar"</li>
+      <li>Copia el ID del Sheet (no el link de publicación) y pégalo arriba</li>
+    </ol>
+    <div style="margin-top:20px;display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="saveConfig()">Guardar y cargar datos</button>
+    </div>
+    ${c.lastFetch ? `<div style="margin-top:12px;font-size:11px;color:var(--muted)">Última carga: ${new Date(c.lastFetch).toLocaleString()}</div>` : ''}
+  </div>`;
+}
+
+// ========== ACTIONS ==========
+function saveConfig() {
+  if (!activeClient) { toast('Selecciona un cliente primero'); return; }
+  const sheetId = document.getElementById('cfgSheetId').value.trim();
+  const gid = document.getElementById('cfgGid').value.trim() || '0';
+  if (!sheetId) { toast('Pega el ID del Google Sheet'); return; }
+  clients[activeClient].sheetId = sheetId;
+  clients[activeClient].gid = gid;
+  saveState(); renderClientSelect();
+  toast('Configuración guardada. Cargando datos...');
+  refreshData();
+}
+
+function saveSales(campaignName, inputId) {
+  const input = document.getElementById(inputId);
+  const val = parseFloat(input.value);
+  if (isNaN(val) || val <= 0) { toast('Ingresa un monto válido'); return; }
+  if (!salesData[activeClient]) salesData[activeClient] = {};
+  salesData[activeClient][campaignName] = { totalSales: val, updatedAt: new Date().toISOString() };
+  saveState(); renderView();
+  toast(`Ventas guardadas: ${fmt.money(val)}`);
+}
+
+// ========== INIT ==========
+loadState();
+renderClientSelect();
+renderView();
+</script>
+</body>
+</html>
